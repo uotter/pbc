@@ -1,20 +1,10 @@
-from openpyxl import Workbook
-
-from openpyxl import load_workbook
-
-from openpyxl.writer.excel import ExcelWriter
-
-import openpyxl as xlsx
+# -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-import xlrd
-import time
-import logging
 import math
 import logging.config
 import ioutil as il
 from datetime import datetime
-from datetime import timedelta
 
 logging.config.fileConfig("./logging.conf")
 logger_name = "work1"
@@ -256,7 +246,8 @@ def main():
                                                 current_month_date = datetime.strptime(
                                                     current_year + last_date_last_month_quarter_dic[current_quarter],
                                                     "%Y-%m-%d")
-                                                file_month_date = datetime.strptime(file_date+last_date_month_dic[int(file_date[-2:])], "%Y%m%d")
+                                                file_month_date = datetime.strptime(
+                                                    file_date + last_date_month_dic[int(file_date[-2:])], "%Y%m%d")
                                                 if file_month_date > current_month_date:
                                                     file_month_date = current_month_date
                                                 file_year = file_date[:4]
@@ -269,13 +260,13 @@ def main():
                                                         delta = file_month_date - datetime.strptime(start_date,
                                                                                                     "%Y-%m-%d")
                                                         if delta.days < 90:
-                                                            active_month[loop_index] = int((delta.days+1) / 30)
+                                                            active_month[loop_index] = int((delta.days + 1) / 30)
                                                         elif delta.days >= 90 and delta.days < loan_time_limit_in_month * 30:
                                                             current_quarter_delta = file_month_date - datetime.strptime(
                                                                 current_year + first_date_quarter_dic[current_quarter],
                                                                 "%Y-%m-%d")
                                                             active_month[loop_index] = int(
-                                                                (current_quarter_delta.days+1) / 30)
+                                                                (current_quarter_delta.days + 1) / 30)
                                                         else:
                                                             sub_append_flag = False
                                                             logger.error(
@@ -413,3 +404,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    str = input(u"按两次回车键关闭窗口。")
