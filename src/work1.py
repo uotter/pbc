@@ -1,14 +1,60 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-import math
+import math, os
 import logging.config
-import ioutil as il
 from datetime import datetime
 
 logging.config.fileConfig("./logging.conf")
 logger_name = "work1"
 logger = logging.getLogger(logger_name)
+
+
+def listdir(path, list_name, return_type):  # 传入存储的list
+    '''
+    save all file path in the dir @path in the list @list_name
+    :param path: dir
+    :param list_name: return list with all path
+    :param return_type: "name": return the filename, "path" return the file path
+    :return:
+    '''
+    for file in os.listdir(path):
+        file_path = os.path.join(path, file)
+        if os.path.isdir(file_path):
+            listdir(file_path, list_name, return_type)
+        else:
+            if return_type == "path":
+                list_name.append(file_path)
+            else:
+                list_name.append(file_path)
+
+
+def read_config_work1():
+    '''
+    read the config file of work1
+    :return:
+    '''
+    read_labels = []
+    result_file_name = "汇总.xls"
+    sheet_name = "人行填写"
+    statistic_labels = "汇总"
+    company_name_list = []
+    with open("../config/work1.conf", "r", encoding="utf-8") as f:
+        for line in f.readlines():
+            line_list = line.replace("\n", "").split(":")
+            if line_list[0] == "Company_name":
+                company_name_list.append(line_list[1])
+            elif line_list[0] == "Sheet_Name":
+                sheet_name = line_list[1]
+            elif line_list[0] == "Read_Label":
+                read_labels.append(line_list[1])
+            elif line_list[0] == "Result_File_Name":
+                result_file_name = line_list[1] + ".xls"
+            elif line_list[0] == "Statistic_Label":
+                statistic_labels = line_list[1]
+            else:
+                pass
+    return read_labels, result_file_name, sheet_name, statistic_labels, company_name_list
 
 
 def isVaildDate(date):
@@ -49,6 +95,8 @@ def isfloat(str):
         float(str)
     except ValueError:
         return False
+    except TypeError:
+        return False
     return True
 
 
@@ -82,7 +130,7 @@ def get_loan_time_limit(loan_time_limit, loan_start_date):
 
 
 def main():
-    read_labels, result_file_name, sheet_name, statistic_label, company_name_list = il.read_config_work1()
+    read_labels, result_file_name, sheet_name, statistic_label, company_name_list = read_config_work1()
     if len(read_labels) <= 0:
         logger.error('统计时间段(Read_Label)为空或配置出错。')
         return
@@ -103,7 +151,7 @@ def main():
     df_headers = None
     file_dir = r"../data/"
     file_path_list = []
-    il.listdir(file_dir, file_path_list, "path")
+    listdir(file_dir, file_path_list, "path")
     statistic_df = pd.DataFrame()
     df_section_index_list = [2 - 1]
     for read_lable in read_labels:
@@ -134,8 +182,20 @@ def main():
                             find_sheet = True
                             if file_index == 0:
                                 df_headers = v.iloc[3:5, :]
-                            df_data = pd.concat((v.iloc[:, 0:2].fillna(method="pad"), v.iloc[:, 2:]), axis=1)
+                            df_data = pd.concat((v.iloc[:, 0:1].fillna(method="pad"), v.iloc[:, 1:]), axis=1)
                             for index, row in df_data.iterrows():
+                                if isinstance(row[0], datetime):
+                                    if isinstance(row[0], pd.Timestamp):
+                                        temp_str = row[0].strftime("%Y-%m")
+                                        row[0] = temp_str.split("-")[0] + "年" + temp_str.split("-")[1].replace("0",
+                                                                                                           "") + "月"
+                                    else:
+                                        row[0] = datetime.strftime(row[0], "%Y-%m")
+                                        row[0] = row[0].split("-")[0] + "年" + row[0].split("-")[1].replace("0", "") + "月"
+                                    # print(row[0])
+                                else:
+                                    pass
+                                    # print(row[0])
                                 if row[0] == read_lable and not row[1] == statistic_label:
                                     if len(set(row[2:])) <= 1 and len(
                                             set([i for i in list(row[2:]) if not math.isnan(i)])) < 1:
@@ -308,7 +368,8 @@ def main():
                                                 row = row.fillna(0)
                                                 this_df_data = this_df_data.append(row, ignore_index=True)
                                                 read_lable_index += 1
-                                elif row[0] == read_lable and row[1] == statistic_label and statistic_count == 0:
+                                elif row[0] == read_lable and row[1] == statistic_label and statistic_count == 0 and (
+                                        (math.isnan(row[3]) if isfloat(row[3]) else False) or row[3] == ""):
                                     statistic_df = row
                                     statistic_count += 1
                     if not find_sheet:
@@ -397,6 +458,7 @@ def main():
                     this_df_tiles.iloc[-1, summary_index] = current_interest + np.sum(
                         this_df_tiles.iloc[-1, 30])
                 summary_loop_index += 1
+        # print("read_lable %s data number %d" % (read_lable, len(this_df_data)))
         df_headers = pd.concat([df_headers, this_df_data, this_df_tiles], axis=0)
         statistic_count = 0
     df_headers.to_excel(file_dir + result_file_name, header=None, index=None)
