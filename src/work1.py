@@ -182,39 +182,45 @@ def main():
                             find_sheet = True
                             if file_index == 0:
                                 df_headers = v.iloc[3:5, :]
-                            df_data = pd.concat((v.iloc[:, 0:1].fillna(method="pad"), v.iloc[:, 1:]), axis=1)
+                            df_data = pd.concat((v.iloc[:, 0:2].fillna(method="pad"), v.iloc[:, 2:]), axis=1)
                             for index, row in df_data.iterrows():
+                                row = row[:33]
                                 if isinstance(row[0], datetime):
                                     if isinstance(row[0], pd.Timestamp):
                                         temp_str = row[0].strftime("%Y-%m")
                                         row[0] = temp_str.split("-")[0] + "年" + temp_str.split("-")[1].replace("0",
-                                                                                                           "") + "月"
+                                                                                                               "") + "月"
                                     else:
                                         row[0] = datetime.strftime(row[0], "%Y-%m")
-                                        row[0] = row[0].split("-")[0] + "年" + row[0].split("-")[1].replace("0", "") + "月"
+                                        row[0] = row[0].split("-")[0] + "年" + row[0].split("-")[1].replace("0",
+                                                                                                           "") + "月"
                                     # print(row[0])
                                 else:
                                     pass
                                     # print(row[0])
-                                if row[0] == read_lable and not row[1] == statistic_label:
+                                if row[0] == read_lable and not row[1] == statistic_label and "预计" not in row[0]:
+                                    # 该行全为nan的情况
                                     if len(set(row[2:])) <= 1 and len(
                                             set([i for i in list(row[2:]) if not math.isnan(i)])) < 1:
                                         # print(set(row[2:]))
+                                        pass
+                                    # 该行全为空或者0的情况
+                                    elif len(set(row[2:])) <= 2 and set(
+                                            [i for i in list(row[2:]) if not math.isnan(i)]) == {0}:
                                         pass
                                     else:
                                         append_flag = True
                                         row[1] = read_lable_index
                                         # 检查填写是否为数字的情况相关内容
-                                        for number_check_index in [2, 5, 6, 7, 8, 11, 14, 15, 16, 17, 23, 24, 26, 29,
-                                                                   30]:
+                                        for number_check_index in [2, 5, 6, 7, 8, 11, 14, 15, 16, 17, 19, 23, 24, 26,
+                                                                   29, 30]:
                                             number_value = row[number_check_index]
                                             if isfloat(number_value):
                                                 pass
                                             else:
                                                 append_flag = False
-                                                logger.error(
-                                                    "文件 " + file_name + " 中第" + str(index + 1) + "行(第" + str(
-                                                        number_check_index + 1) + ")列应使用全数字填写，目前表格不符合要求，未计入统计")
+                                                logger.error("文件 " + file_name + " 中第" + str(index + 1) + "行(第" + str(
+                                                    number_check_index + 1) + ")列应使用全数字填写，目前表格不符合要求，未计入统计")
                                         # 处理发放日相关内容
                                         for date_index in [3, 12, 21, 27]:
                                             if isinstance(row[date_index], datetime):
@@ -222,9 +228,11 @@ def main():
                                             elif isVaildDate(row[date_index])[0]:
                                                 row[date_index] = datetime.strftime(isVaildDate(row[date_index])[1],
                                                                                     "%Y-%m-%d")
+                                            # 贷款金额不为空也不为0
                                             elif isfloat(row[date_index]) and isfloat(
-                                                    row[date_index - 1]) and math.isnan(row[date_index]) and math.isnan(
-                                                row[date_index - 1]):
+                                                    row[date_index - 1]) and (
+                                                    (math.isnan(row[date_index]) and math.isnan(
+                                                        row[date_index - 1])) or (row[date_index - 1] == 0)):
                                                 pass
                                             else:
                                                 append_flag = False
@@ -238,10 +246,12 @@ def main():
                                                 loan_time_limit, row[loan_time_limit_index - 1])
                                             if loan_time_limit_flag:
                                                 row[loan_time_limit_index] = loan_time_limit_in_month
+                                            # 贷款金额不为空也不为0
                                             elif isfloat(row[loan_time_limit_index]) and isfloat(
-                                                    row[loan_time_limit_index - 2]) and math.isnan(
+                                                    row[loan_time_limit_index - 2]) and ((math.isnan(
                                                 row[loan_time_limit_index]) and math.isnan(
-                                                row[loan_time_limit_index - 2]):
+                                                row[loan_time_limit_index - 2])) or (row[
+                                                                                         loan_time_limit_index - 2] == 0)):
                                                 pass
                                             else:
                                                 append_flag = False
@@ -313,8 +323,9 @@ def main():
                                                 file_year = file_date[:4]
                                                 loop_index = 0
                                                 for date_index in [3, 12, 21, 27]:
-                                                    if not (isfloat(row[date_index - 1]) and math.isnan(
-                                                            row[date_index - 1])):
+                                                    # 贷款金额不为空也不为0
+                                                    if not (isfloat(row[date_index - 1]) and (math.isnan(
+                                                            row[date_index - 1])) or row[date_index - 1] == 0):
                                                         loan_time_limit_in_month = row[date_index + 1]
                                                         start_date = row[date_index]
                                                         delta = file_month_date - datetime.strptime(start_date,
@@ -339,8 +350,9 @@ def main():
                                             elif "月" in row[0]:
                                                 loop_index = 0
                                                 for date_index in [3, 12, 21, 27]:
-                                                    if not (isfloat(row[date_index - 1]) and math.isnan(
-                                                            row[date_index - 1])):
+                                                    # 贷款金额不为空也不为0
+                                                    if not (isfloat(row[date_index - 1]) and (math.isnan(
+                                                            row[date_index - 1])) or row[date_index - 1] == 0):
                                                         loan_time_limit_in_month = row[date_index + 1]
                                                         start_date = row[date_index]
                                                         delta = file_month_date - datetime.strptime(start_date,
@@ -366,8 +378,25 @@ def main():
                                                 np.concatenate([row.values, np.array(active_month)], axis=0))
                                             if sub_append_flag:
                                                 row = row.fillna(0)
+                                                row[32] = file_company
                                                 this_df_data = this_df_data.append(row, ignore_index=True)
                                                 read_lable_index += 1
+                                # 预计部分不需要计算月份之类的东西，而且有些值可能为空时时正常的，不做严格校验，只看一下是不是整行为空或者为0
+                                elif row[0] == read_lable and not row[1] == statistic_label and "预计" in row[0]:
+                                    # 该行全为空的情况
+                                    if len(set(row[2:])) <= 1 and len(
+                                            set([i for i in list(row[2:]) if not math.isnan(i)])) < 1:
+                                        # print(set(row[2:]))
+                                        pass
+                                    # 该行全为空或者0的情况
+                                    elif len(set(row[2:])) <= 2 and set(
+                                            [i for i in list(row[2:]) if not math.isnan(i)]) == {0}:
+                                        pass
+                                    else:
+                                        row[1] = read_lable_index
+                                        row[32] = file_company
+                                        this_df_data = this_df_data.append(row, ignore_index=True)
+                                        read_lable_index += 1
                                 elif row[0] == read_lable and row[1] == statistic_label and statistic_count == 0 and (
                                         (math.isnan(row[3]) if isfloat(row[3]) else False) or row[3] == ""):
                                     statistic_df = row
